@@ -46,27 +46,30 @@ class SmartReplyPlugin: FlutterPlugin, MethodCallHandler {
 
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
     if (call.method == "suggestReplies") {
-      val conversation = call.arguments<List<Map<String, Any>>>().map { m ->
-        if(m["isLocalUser"] as Boolean) {
-          return@map TextMessage.createForLocalUser(m["text"] as String, m["timestamp"] as Long)
-        } else {
-          return@map TextMessage.createForRemoteUser(m["text"] as String, m["timestamp"] as Long, m["userId"] as String)
-        }
+      val conversation = call.arguments<List<Map<String, Any>>>()?.map { m ->
+          if(m["isLocalUser"] as Boolean) {
+            return@map TextMessage.createForLocalUser(m["text"] as String, m["timestamp"] as Long)
+          } else {
+            return@map TextMessage.createForRemoteUser(m["text"] as String, m["timestamp"] as Long, m["userId"] as String)
+          }
       }
-      smartReply.suggestReplies(conversation)
-              .addOnSuccessListener { suggestionResult ->
-                when (suggestionResult.status) {
-                    SmartReplySuggestionResult.STATUS_SUCCESS -> {
-                      result.success(suggestionResult.suggestions.map { r -> r.text })
-                    }
-                    else -> {
-                      result.success(listOf<String>())
-                    }
-                }
+      conversation?.let {
+        smartReply.suggestReplies(it)
+          .addOnSuccessListener { suggestionResult ->
+            when (suggestionResult.status) {
+              SmartReplySuggestionResult.STATUS_SUCCESS -> {
+                result.success(suggestionResult.suggestions.map { r -> r.text })
               }
-              .addOnFailureListener { err ->
-                result.error("SUGGESTION_FAILURE", err.message, null)
+
+              else -> {
+                result.success(listOf<String>())
               }
+            }
+          }
+          .addOnFailureListener { err ->
+            result.error("SUGGESTION_FAILURE", err.message, null)
+          }
+      }
     } else {
       result.notImplemented()
     }
